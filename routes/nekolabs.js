@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const nekolabsController = require('../controllers/nekolabsController');
+const nekolabsController = require('../controllers/nekolabsController.clean');
 
 /**
  * @route   GET /api/nekolabs/cors
@@ -37,7 +37,9 @@ router.get('/image', nekolabsController.generateImage);
  * 
  * @example GET /api/nekolabs/text/gemini?text=Halo&systemPrompt=Kamu adalah asisten&sessionId=123
  */
+// Accept optional variant path (e.g. 2.5-pro, 2.5-flash, 2.5-flash-lite)
 router.get('/text/gemini', nekolabsController.generateTextGemini);
+router.get('/text/gemini/:variant', nekolabsController.generateTextGemini);
 
 /**
  * @route   POST /api/nekolabs/text/chat
