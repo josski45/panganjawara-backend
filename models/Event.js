@@ -6,13 +6,7 @@ class Event {
 
   // Helper method to normalize image path using environment-aware utils
   normalizePath(filenameOrPath) {
-    if (!filenameOrPath) return '';
-    
-    // Extract filename if it's a full path
-    const filename = filenameOrPath.split('/').pop();
-    
-    // Use ImagePathUtils for consistent path normalization
-    return this.ImagePathUtils.normalizePath(filename);
+    return this.ImagePathUtils.toPublicUrl(filenameOrPath);
   }
 
   // Create new event (admin/superadmin only)
