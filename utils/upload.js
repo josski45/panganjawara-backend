@@ -98,11 +98,11 @@ async function getImagesByEntity(db, entityType, entityId) {
   const query = 'SELECT * FROM images WHERE entity_type = ? AND entity_id = ? ORDER BY created_at ASC';
   const [rows] = await db.execute(query, [entityType, entityId]);
   
-  // Normalize paths to fix any legacy double /pajar/pajar/ paths
+  // Convert stored paths to public URLs (Supabase Storage if configured)
   const ImagePathUtils = require('./imagePathUtils');
   return rows.map(image => ({
     ...image,
-    path: ImagePathUtils.normalizePath(image.filename) // Always return correct path format
+    path: ImagePathUtils.toPublicUrl(image.path || image.filename)
   }));
 }
 

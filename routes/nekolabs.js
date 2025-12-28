@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const nekolabsController = require('../controllers/nekolabsController.clean');
+const nekolabsController = require('../controllers/nekolabsController');
 
 /**
  * @route   GET /api/nekolabs/cors

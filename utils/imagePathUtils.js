@@ -6,6 +6,10 @@ class ImagePathUtils {
     this.envConfig = new EnvironmentConfig();
   }
 
+  static isHttpUrl(value) {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+  }
+
   /**
    * Normalize image path to ensure correct format
    * @param {string} path - The original path
@@ -87,6 +91,30 @@ class ImagePathUtils {
   static pathToUrl(path, baseUrl = '') {
     const normalizedPath = this.normalizePath(path);
     return baseUrl ? `${baseUrl.replace(/\/$/, '')}${normalizedPath}` : normalizedPath;
+  }
+
+  /**
+   * Convert any stored image reference into a public URL.
+   * - If already a http(s) URL, returns as-is
+   * - If SUPABASE_URL is configured, builds Supabase Storage public URL
+   * - Otherwise falls back to normalized relative path
+   * @param {string} value - filename | /pajar/uploads/<file> | /uploads/<file> | full URL
+   * @param {string} bucket - Supabase Storage bucket (default: uploads)
+   * @returns {string}
+   */
+  static toPublicUrl(value, bucket = 'uploads') {
+    if (!value) return '';
+    if (this.isHttpUrl(value)) return value;
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const filename = this.extractFilename(value);
+
+    if (supabaseUrl && filename) {
+      const base = supabaseUrl.replace(/\/$/, '');
+      return `${base}/storage/v1/object/public/${bucket}/${filename}`;
+    }
+
+    return this.normalizePath(value);
   }
 
   /**

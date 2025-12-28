@@ -7,7 +7,7 @@ class Post {
 
   // Helper method to normalize image path
   normalizePath(path) {
-    return ImagePathUtils.normalizePath(path);
+    return ImagePathUtils.toPublicUrl(path);
   }
 
   // Membuat post baru
