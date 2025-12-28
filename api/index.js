@@ -37,34 +37,41 @@ app.use(cors({
 // Database pool (will be initialized on first request)
 let dbPool = null;
 let isInitialized = false;
+let initPromise = null;
 
 // Initialize database on first request
 async function ensureDbInitialized() {
   if (isInitialized) return dbPool;
+  if (initPromise) return initPromise;
   
-  try {
-    dbPool = await initDatabase();
-    
-    // Create tables if not exist
-    await createUsersTable(dbPool);
-    await createPostsTable(dbPool);
-    await createCommentsTable(dbPool);
-    await createArticlesTable(dbPool);
-    await createVideosTable(dbPool);
-    await createEventsTable(dbPool);
-    await createImagesTable(dbPool);
-    await createStatisticsTable(dbPool);
-    await createWilayahTable(dbPool);
-    await createApiKeyUsageTable(dbPool);
-    
-    isInitialized = true;
-    console.log('Database initialized for Vercel');
-  } catch (error) {
-    console.error('Database initialization error:', error);
-    throw error;
-  }
-  
-  return dbPool;
+  initPromise = (async () => {
+    try {
+      dbPool = await initDatabase();
+      
+      // Create tables if not exist
+      await createUsersTable(dbPool);
+      await createPostsTable(dbPool);
+      await createCommentsTable(dbPool);
+      await createArticlesTable(dbPool);
+      await createVideosTable(dbPool);
+      await createEventsTable(dbPool);
+      await createImagesTable(dbPool);
+      await createStatisticsTable(dbPool);
+      await createWilayahTable(dbPool);
+      await createApiKeyUsageTable(dbPool);
+      
+      isInitialized = true;
+      console.log('Database initialized for Vercel');
+      return dbPool;
+    } catch (error) {
+      console.error('Database initialization error:', error);
+      throw error;
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
 }
 
 // Health check (no db needed)
@@ -144,8 +151,6 @@ try {
 }
 
 // Routes will be mounted after DB is initialized
-let routesMounted = false;
-
 function mountRoutes(basePath, db) {
   // Create routers with db instance
   app.use(`${basePath}/posts`, createPostRoutes(db));
@@ -169,31 +174,34 @@ function mountRoutes(basePath, db) {
   }
 }
 
-// Initialize and mount routes on first request
-async function ensureRoutesAndDb(req, res, next) {
-  try {
-    if (!isInitialized) {
-      await ensureDbInitialized();
-    }
-    
-    if (!routesMounted && dbPool) {
-      mountRoutes('/pajar', dbPool);
-      mountRoutes('', dbPool);
-      routesMounted = true;
-      console.log('Routes mounted successfully');
-    }
-    
-    req.db = dbPool;
-    req.supabase = getSupabase();
-    next();
-  } catch (error) {
-    console.error('Init error:', error);
-    res.status(500).json({ error: 'Server initialization failed', message: error.message });
+// Lazy DB wrapper so routes can be mounted immediately.
+// This avoids a Vercel/Express pitfall where dynamically mounting routes during
+// a request appends them after the 404 handler, causing false "Not Found".
+const lazyDb = {
+  async execute(query, params = []) {
+    const db = await ensureDbInitialized();
+    return db.execute(query, params);
+  },
+  async query(query, params = []) {
+    const db = await ensureDbInitialized();
+    return db.query(query, params);
+  },
+  async getConnection() {
+    const db = await ensureDbInitialized();
+    return db.getConnection();
+  },
+  end() {
+    // If not initialized yet, nothing to end.
+    return dbPool?.end?.();
+  },
+  on(event, callback) {
+    return dbPool?.on?.(event, callback);
   }
-}
+};
 
-// Apply initialization middleware
-app.use(ensureRoutesAndDb);
+// Mount routes at startup for both /pajar/* and root /*
+mountRoutes('/pajar', lazyDb);
+mountRoutes('', lazyDb);
 
 // 404 handler - must be after routes
 app.use((req, res) => {
