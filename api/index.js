@@ -4,6 +4,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const multer = require('multer');
 
 // Load environment variables
 dotenv.config();
@@ -360,6 +361,36 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
+  // Upload/body size errors
+  if (err instanceof multer.MulterError) {
+    const maxMb = parseInt(process.env.UPLOAD_MAX_FILE_MB || '5', 10);
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: 'Content Too Large',
+        message: `Image file exceeds max size (${Number.isFinite(maxMb) ? maxMb : 5}MB)`
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(413).json({
+        error: 'Content Too Large',
+        message: 'Too many files uploaded'
+      });
+    }
+    return res.status(400).json({
+      error: 'Upload error',
+      code: err.code,
+      message: err.message
+    });
+  }
+
+  // body-parser style error (can happen with large non-multipart payloads)
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Content Too Large',
+      message: err.message || 'Request payload too large'
+    });
+  }
+
   console.error('Error:', err);
   res.status(500).json({ 
     error: 'Internal Server Error',

@@ -5,18 +5,19 @@ class Statistics {
 
   // Record a statistic action
   async record(entityType, entityId, action, ipAddress = null, userAgent = null, country = null, city = null) {
-    const query = `INSERT INTO statistics (entity_type, entity_id, action, ip_address, user_agent, country, city, created_at) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
-    
-    const [result] = await this.db.execute(query, [
+    const query = `INSERT INTO statistics (entity_type, entity_id, action, ip_address, user_agent, country, city, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                   RETURNING id`;
+
+    const [rows] = await this.db.execute(query, [
       entityType, entityId, action, 
       ipAddress || null, 
       userAgent || null, 
       country || null, 
       city || null
     ]);
-    
-    return result.insertId;
+
+    return rows?.[0]?.id;
   }
 
   // Log action with client info (helper method)
@@ -95,7 +96,7 @@ class Statistics {
         COUNT(DISTINCT ip_address) as unique_count
       FROM statistics 
       WHERE entity_type = ? AND action = ? 
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        AND created_at >= NOW() - (? * INTERVAL '1 day')
       GROUP BY entity_id 
       ORDER BY total_count DESC 
       LIMIT ?
@@ -114,7 +115,7 @@ class Statistics {
         COUNT(*) as count,
         COUNT(DISTINCT ip_address) as unique_users
       FROM statistics 
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+      WHERE created_at >= NOW() - (? * INTERVAL '1 day')
         AND country IS NOT NULL
     `;
     const params = [days];
@@ -131,9 +132,11 @@ class Statistics {
 
   // Clean old statistics (for performance)
   async cleanOldStats(daysToKeep = 365) {
-    const query = 'DELETE FROM statistics WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)';
-    const [result] = await this.db.execute(query, [daysToKeep]);
-    return result.affectedRows;
+    const query = `DELETE FROM statistics 
+                   WHERE created_at < NOW() - (? * INTERVAL '1 day')
+                   RETURNING id`;
+    const [rows] = await this.db.execute(query, [daysToKeep]);
+    return rows.length;
   }
 }
 

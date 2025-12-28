@@ -5,6 +5,10 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const ImagePathUtils = require('./imagePathUtils');
 
+const MAX_UPLOAD_FILE_MB = parseInt(process.env.UPLOAD_MAX_FILE_MB || '5', 10);
+const MAX_UPLOAD_FILES = parseInt(process.env.UPLOAD_MAX_FILES || '10', 10);
+const MAX_UPLOAD_FILE_SIZE = (Number.isFinite(MAX_UPLOAD_FILE_MB) ? MAX_UPLOAD_FILE_MB : 5) * 1024 * 1024;
+
 // Check if running in Vercel serverless environment
 const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
 
@@ -50,8 +54,8 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 10 // Maximum 10 files
+    fileSize: MAX_UPLOAD_FILE_SIZE,
+    files: Number.isFinite(MAX_UPLOAD_FILES) ? MAX_UPLOAD_FILES : 10
   }
 });
 

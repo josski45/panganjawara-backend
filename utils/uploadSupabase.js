@@ -3,6 +3,10 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
+const MAX_UPLOAD_FILE_MB = parseInt(process.env.UPLOAD_MAX_FILE_MB || '5', 10);
+const MAX_UPLOAD_FILES = parseInt(process.env.UPLOAD_MAX_FILES || '10', 10);
+const MAX_UPLOAD_FILE_SIZE = (Number.isFinite(MAX_UPLOAD_FILE_MB) ? MAX_UPLOAD_FILE_MB : 5) * 1024 * 1024;
+
 // Use memory storage for Vercel (no local filesystem in serverless)
 const storage = multer.memoryStorage();
 
@@ -21,8 +25,8 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 10 // Maximum 10 files
+    fileSize: MAX_UPLOAD_FILE_SIZE,
+    files: Number.isFinite(MAX_UPLOAD_FILES) ? MAX_UPLOAD_FILES : 10
   }
 });
 
