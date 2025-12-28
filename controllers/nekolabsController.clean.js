@@ -47,13 +47,12 @@ exports.generateImage = async (req, res) => {
 
 exports.generateTextGemini = async (req, res) => {
   try {
-    const { text, systemPrompt, imageUrl, sessionId, version = 'v1' } = req.query;
+    const { text, systemPrompt, imageUrl, sessionId } = req.query;
     if (!text) return res.status(400).json({ success: false, error: 'Parameter "text" diperlukan' });
-    const validVersions = ['v1', 'v2']; if (!validVersions.includes(version)) return res.status(400).json({ success: false, error: `Version tidak valid. Gunakan: ${validVersions.join(' atau ')}` });
-    const defaultEndpoint = `text-generation/gemini/2.5-flash/${version}`;
-    const variant = req.params?.variant;
-    const targetPath = variant ? `text-generation/gemini/${variant}/${version}` : defaultEndpoint;
-    const apiUrl = `${NEKOLABS_BASE_URL}/${targetPath}`;
+    const variant = req.params?.variant || '2.5-flash';
+    // Upstream NekoLabs Gemini endpoints are under /txt.gen/gemini/<variant>
+    // Examples: /txt.gen/gemini/2.5-flash, /txt.gen/gemini/2.5-pro, /txt.gen/gemini/2.5-flash-lite
+    const apiUrl = `${NEKOLABS_BASE_URL}/txt.gen/gemini/${variant}`;
     const params = { text }; if (systemPrompt) params.systemPrompt = systemPrompt; if (imageUrl) params.imageUrl = imageUrl; if (sessionId) params.sessionId = sessionId;
     const headers = {}; const nekoKey = getNekoKey(req); if (nekoKey) headers['X-NekoKey'] = nekoKey;
     const response = await axios.get(apiUrl, { params, headers, timeout: 30000 });
@@ -68,13 +67,10 @@ exports.generateTextGemini = async (req, res) => {
 
 exports.chatCompletion = async (req, res) => {
   try {
-    const { messages, model = 'gemini-2.5-flash', systemPrompt, sessionId, version = 'v1' } = req.body;
+    const { messages, model = 'gemini-2.5-flash', systemPrompt, sessionId } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ success: false, error: 'Parameter \"messages\" array diperlukan' });
     }
-
-    const validVersions = ['v1', 'v2'];
-    const apiVersion = validVersions.includes(version) ? version : 'v1';
 
     // Model mapping: "gemini-2.5-flash" -> "2.5-flash", "gemini-2.5-pro" -> "2.5-pro", "gemini-3.0" -> "3.0"
     const variantFromModel = typeof model === 'string' && model.startsWith('gemini-') ? model.slice('gemini-'.length) : null;
@@ -90,7 +86,7 @@ exports.chatCompletion = async (req, res) => {
     const text = parts.length ? parts.join('\n') : '';
     if (!text) return res.status(400).json({ success: false, error: 'Minimal satu pesan valid diperlukan' });
 
-    const apiUrl = `${NEKOLABS_BASE_URL}/text-generation/gemini/${variant}/${apiVersion}`;
+    const apiUrl = `${NEKOLABS_BASE_URL}/txt.gen/gemini/${variant}`;
     const params = { text };
     if (systemPrompt) params.systemPrompt = systemPrompt;
     if (sessionId) params.sessionId = sessionId;
